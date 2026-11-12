@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Admin</h1>
+
+  <form id="login">
+    <p><input id="user" placeholder="Usuário" autocomplete="username" required></p>
+    <p><input id="pass" type="password" placeholder="Senha" autocomplete="current-password" required></p>
+    <button class="dark">Entrar</button> <span id="erro"></span>
+  </form>
+
+  <div id="painel" hidden>
+    <p><button id="sair">Sair</button></p>
+    <form id="form">
+      <h2 id="form-titulo">Novo item</h2>
+      <p><input id="nome" placeholder="Nome" required></p>
+      <p><textarea id="desc" placeholder="Descrição" rows="3"></textarea></p>
+      <p><input id="preco" type="number" step="0.01" placeholder="Preço"> <input id="categoria" placeholder="Categoria"></p>
+      <p><select id="status">
+        <option value="disponivel">Disponível</option>
+        <option value="reservado">Reservado</option>
+        <option value="vendido">Vendido</option>
+      </select></p>
+      <p>Fotos: <input id="arquivos" type="file" accept="image/*" multiple></p>
+      <div id="atuais"></div>
+      <p><button class="dark">Salvar</button> <button type="button" id="cancelar">Cancelar</button></p>
+    </form>
+    <h2>Itens cadastrados</h2>
+    <div id="lista"></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+let itens = [], editando = null, fotosAtuais = [];
+const opcoes = s => ["disponivel", "reservado", "vendido"].map(o => `<option ${o === s ? "selected" : ""}>${o}</option>`).join("");
+
+// ----- login (usuário vira um e-mail de mentira, só por baixo dos panos) -----
+async function iniciar() {
+  const { data } = await db.auth.getSession();
+  mostrar(!!data.session);
+}
+function mostrar(logado) {
+  $("login").hidden = logado;
+  $("painel").hidden = !logado;
+  if (logado) carregar();
+}
+$("login").onsubmit = async e => {
+  e.preventDefault();
+  const email = $("user").value.trim().toLowerCase() + "@loja.local";
+  const { error } = await db.auth.signInWithPassword({ email, password: $("pass").value });
+  $("erro").textContent = error ? "Usuário ou senha incorretos." : "";
+  if (!error) mostrar(true);
+};
+$("sair").onclick = async () => { await db.auth.signOut(); mostrar(false); };
+
+// ----- fotos: reduz o tamanho antes de enviar -----
+function comprimir(file) {
+  return new Promise(ok => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1000 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = img.width * k; c.height = img.height * k;
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob(ok, "image/jpeg", 0.8);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+function desenharAtuais() {
+  $("atuais").innerHTML = fotosAtuais.map((f, n) =>
+    `<img src="${esc(f)}" height="60"> <a href="#" onclick="fotosAtuais.splice(${n},1);desenharAtuais();return false">remover</a> `).join("");
+}
+
+// ----- criar / editar -----
+$("form").onsubmit = async e => {
+  e.preventDefault();
+  const btn = e.submitter; btn.disabled = true;
+  try {
+    const novas = [];
+    for (const f of $("arquivos").files) {
+      const nome = crypto.randomUUID() + ".jpg";
+      const { error } = await db.storage.from("fotos").upload(nome, await comprimir(f), { contentType: "image/jpeg" });
+      if (error) throw error;
+      novas.push(db.storage.from("fotos").getPublicUrl(nome).data.publicUrl);
+    }
+    const dados = {
+      name: $("nome").value, description: $("desc").value,
+      price: $("preco").value || null, category: $("categoria").value.trim() || null,
+      status: $("status").value, photos: [...fotosAtuais, ...novas],
+    };
+    const { error } = editando
+      ? await db.from("items").update(dados).eq("id", editando)
+      : await db.from("items").insert(dados);
+    if (error) throw error;
+    limpar(); carregar();
+  } catch (err) { alert("Erro ao salvar: " + err.message); }
+  btn.disabled = false;
+};
+
+function limpar() {
+  editando = null; fotosAtuais = [];
+  $("form").reset(); $("form-titulo").textContent = "Novo item"; desenharAtuais();
+}
+$("cancelar").onclick = limpar;
+
+function editar(id) {
+  const i = itens.find(x => x.id === id);
+  editando = id; fotosAtuais = [...(i.photos || [])];
+  $("nome").value = i.name; $("desc").value = i.description || "";
+  $("preco").value = i.price ?? ""; $("categoria").value = i.category || "";
+  $("status").value = i.status; $("form-titulo").textContent = "Editando item";
+  desenharAtuais(); scrollTo(0, 0);
+}
+
+// ----- listar / mudar status / apagar -----
+async function carregar() {
+  const { data } = await db.from("items").select("*").order("created_at", { ascending: false });
+  itens = data || [];
+  $("lista").innerHTML = itens.map(i => `
+    <div class="linha"><span>${esc(i.name)}</span>
+      <span><select onchange="mudar('${i.id}', this.value)">${opcoes(i.status)}</select>
+      <button onclick="editar('${i.id}')">Editar</button>
+      <button onclick="apagar('${i.id}')">Apagar</button></span>
+    </div>`).join("") || "<p>Nenhum item cadastrado.</p>";
+}
+async function mudar(id, status) {
+  const { error } = await db.from("items").update({ status }).eq("id", id);
+  if (error) alert("Erro: " + error.message);
+  carregar();
+}
+async function apagar(id) {
+  const i = itens.find(x => x.id === id);
+  if (!confirm(`Apagar "${i.name}" de vez?`)) return;
+  await db.storage.from("fotos").remove((i.photos || []).map(u => u.split("/").pop()));
+  const { error } = await db.from("items").delete().eq("id", id);
+  if (error) alert("Erro: " + error.message);
+  carregar();
+}
+iniciar();
+</script>
+</body>
+</html>

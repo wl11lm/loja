@@ -1,0 +1,29 @@
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.5 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; background: #fff; color: #37352f; }
+main { max-width: 960px; margin: 0 auto; padding: 32px 16px 96px; }
+h1 { font-size: 30px; margin: 0 0 4px; }
+h2 { font-size: 20px; }
+.aviso { color: #787774; font-size: 13px; margin: 0 0 16px; }
+input, select, textarea, button, .btn { font: inherit; padding: 7px 12px; border: 1px solid #e0e0de; border-radius: 4px; background: #fff; color: inherit; }
+button, .btn { cursor: pointer; background: #f7f7f5; display: inline-block; text-decoration: none; transition: background .15s; }
+button:hover, .btn:hover { background: #efefed; }
+button.dark, .btn.dark { background: #37352f; color: #fff; border-color: #37352f; }
+button.dark:hover, .btn.dark:hover { background: #4a4843; }
+:focus-visible { outline: 2px solid #9b9a97; outline-offset: 2px; }
+.barra { display: flex; gap: 8px; margin-bottom: 20px; }
+.barra input { flex: 1; }
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.card { border: 1px solid #e9e9e7; border-radius: 6px; overflow: hidden; cursor: pointer; transition: background .15s; }
+.card:hover { background: #f7f7f5; }
+.card img, .sem-foto { width: 100%; aspect-ratio: 1; object-fit: cover; background: #efefed; display: block; }
+.info { padding: 10px 12px; }
+.preco { color: #787774; }
+.tag { font-size: 12px; background: #efefed; border-radius: 3px; padding: 1px 6px; margin-left: 4px; }
+.vendido { opacity: .5; }
+dialog { border: 1px solid #e0e0de; border-radius: 8px; max-width: 480px; width: 92%; color: #37352f; padding: 20px; }
+dialog::backdrop { background: rgba(0, 0, 0, .3); }
+#btn-carrinho { position: fixed; right: 16px; bottom: 16px; }
+.linha { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #efefed; gap: 8px; }
+.fotos { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 8px; }
+.fotos img { height: 220px; border-radius: 4px; }
+textarea { width: 100%; }
