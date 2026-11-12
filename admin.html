@@ -56,7 +56,8 @@ function mostrar(logado) {
 }
 $("login").onsubmit = async e => {
   e.preventDefault();
-  const email = $("user").value.trim().toLowerCase() + "@loja.local";
+  const u = $("user").value.trim().toLowerCase();
+  const email = u.includes("@") ? u : u + "@loja.local"; // aceita usuário simples ou e-mail completo
   const { error } = await db.auth.signInWithPassword({ email, password: $("pass").value });
   $("erro").textContent = error ? "Usuário ou senha incorretos." : "";
   if (!error) mostrar(true);
